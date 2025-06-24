@@ -77,6 +77,60 @@ export default function MainFiles(
   const createShareModal = useSignal<{ isOpen: boolean; filePath: string; password?: string } | null>(null);
   const manageShareModal = useSignal<{ isOpen: boolean; fileShareId: string } | null>(null);
 
+  // 分块上传辅助函数
+  async function uploadFileInChunks(file: File, parentPath: string, pathInView: string): Promise<boolean> {
+    const CHUNK_SIZE = 1024 * 1024; // 1MB chunks for minimal memory usage
+    const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+    const fileId = `${Date.now()}_${Math.random().toString(36)}_${file.name}`;
+
+    console.log(`开始分块上传: ${file.name}, 大小: ${(file.size / 1024 / 1024).toFixed(2)}MB, 分块数: ${totalChunks}`);
+
+    try {
+      for (let i = 0; i < totalChunks; i++) {
+        const start = i * CHUNK_SIZE;
+        const end = Math.min(start + CHUNK_SIZE, file.size);
+        const chunk = file.slice(start, end);
+
+        console.log(`上传块 ${i + 1}/${totalChunks}, 大小: ${(chunk.size / 1024).toFixed(1)}KB`);
+
+        const response = await fetch('/api/files/upload-chunk', {
+          method: 'POST',
+          headers: {
+            'x-file-name': file.name,
+            'x-parent-path': parentPath,
+            'x-path-in-view': pathInView,
+            'x-chunk-index': i.toString(),
+            'x-total-chunks': totalChunks.toString(),
+            'x-file-id': fileId,
+          },
+          body: chunk,
+        });
+
+        if (!response.ok) {
+          throw new Error(`分块上传失败: ${response.statusText}`);
+        }
+
+        const result = await response.json();
+        
+        if (!result.success) {
+          throw new Error('分块保存失败!');
+        }
+
+        // 如果是最后一块且文件完成
+        if (result.isComplete) {
+          console.log(`文件上传完成: ${file.name}`);
+          files.value = [...result.newFiles];
+          directories.value = [...result.newDirectories];
+          return true;
+        }
+      }
+      return true;
+    } catch (error) {
+      console.error('分块上传错误:', error);
+      throw error;
+    }
+  }
+
   function onClickUploadFile(uploadDirectory = false) {
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
@@ -92,52 +146,62 @@ export default function MainFiles(
 
     fileInput.onchange = async (event) => {
       const chosenFilesList = (event.target as HTMLInputElement)?.files!;
-
       const chosenFiles = Array.from(chosenFilesList);
 
       isUploading.value = true;
+      areNewOptionsOpen.value = false;
 
       for (const chosenFile of chosenFiles) {
         if (!chosenFile) {
           continue;
         }
 
-        areNewOptionsOpen.value = false;
-
-        const requestBody = new FormData();
-        requestBody.set('path_in_view', path.value);
-        requestBody.set('parent_path', path.value);
-        requestBody.set('name', chosenFile.name);
-        requestBody.set('contents', chosenFile);
-
-        // Keep directory structure if the file comes from a chosen directory
-        if (chosenFile.webkitRelativePath) {
-          const directoryPath = chosenFile.webkitRelativePath.replace(chosenFile.name, '');
-
-          // We don't need to worry about path joining here, the API will handle it (and make sure it's secure)
-          requestBody.set('parent_path', `${path.value}${directoryPath}`);
-        }
-
         try {
-          const response = await fetch(`/api/files/upload`, {
-            method: 'POST',
-            body: requestBody,
-          });
-
-          if (!response.ok) {
-            throw new Error(`Failed to upload file. ${response.statusText} ${await response.text()}`);
+          let parentPath = path.value;
+          
+          // Keep directory structure if the file comes from a chosen directory
+          if (chosenFile.webkitRelativePath) {
+            const directoryPath = chosenFile.webkitRelativePath.replace(chosenFile.name, '');
+            parentPath = `${path.value}${directoryPath}`;
           }
 
-          const result = await response.json() as UploadResponseBody;
+          const fileSize = chosenFile.size;
+          const fileSizeMB = fileSize / 1024 / 1024;
 
-          if (!result.success) {
-            throw new Error('Failed to upload file!');
+          // 对于大于10MB的文件使用分块上传，小文件使用传统方式
+          if (fileSizeMB > 10) {
+            console.log(`大文件检测 (${fileSizeMB.toFixed(2)}MB)，使用分块上传`);
+            await uploadFileInChunks(chosenFile, parentPath, path.value);
+          } else {
+            console.log(`小文件 (${fileSizeMB.toFixed(2)}MB)，使用传统上传`);
+            
+            const requestBody = new FormData();
+            requestBody.set('path_in_view', path.value);
+            requestBody.set('parent_path', parentPath);
+            requestBody.set('name', chosenFile.name);
+            requestBody.set('contents', chosenFile);
+
+            const response = await fetch('/api/files/upload', {
+              method: 'POST',
+              body: requestBody,
+            });
+
+            if (!response.ok) {
+              throw new Error(`Failed to upload file. ${response.statusText} ${await response.text()}`);
+            }
+
+            const result = await response.json() as UploadResponseBody;
+
+            if (!result.success) {
+              throw new Error('Failed to upload file!');
+            }
+
+            files.value = [...result.newFiles];
+            directories.value = [...result.newDirectories];
           }
-
-          files.value = [...result.newFiles];
-          directories.value = [...result.newDirectories];
         } catch (error) {
-          console.error(error);
+          console.error(`上传失败: ${chosenFile.name}`, error);
+          alert(`文件 "${chosenFile.name}" 上传失败: ${error.message}`);
         }
       }
 
