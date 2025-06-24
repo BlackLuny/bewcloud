@@ -264,26 +264,37 @@ export class FileModel {
         truncate: true,
       });
 
-      // Use custom transform stream to control memory usage
-      const writerStream = new WritableStream({
-        write(chunk) {
-          return file!.write(chunk);
-        },
-        close() {
-          file?.close();
-          file = null;
-        },
-        abort(reason) {
-          file?.close();
-          file = null;
-          throw reason;
+      // Use chunked processing to minimize memory usage
+      const reader = stream.getReader();
+      const CHUNK_SIZE = 8192; // 8KB chunks for minimal memory usage
+      
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          
+          if (done) {
+            break;
+          }
+          
+          // Process chunk immediately and release memory
+          if (value) {
+            // Further split large chunks if needed
+            for (let i = 0; i < value.length; i += CHUNK_SIZE) {
+              const chunk = value.slice(i, i + CHUNK_SIZE);
+              await file.write(chunk);
+              
+              // Allow garbage collection between chunks
+              if (i % (CHUNK_SIZE * 8) === 0) {
+                await new Promise(resolve => setTimeout(resolve, 0));
+              }
+            }
+          }
         }
-      }, {
-        // Set a reasonable high water mark to control memory buffering
-        highWaterMark: 64 * 1024 // 64KB buffer
-      });
-
-      await stream.pipeTo(writerStream);
+      } finally {
+        reader.releaseLock();
+        file.close();
+        file = null;
+      }
     } catch (error) {
       console.error(error);
       if (file) {
