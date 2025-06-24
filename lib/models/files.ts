@@ -264,9 +264,10 @@ export class FileModel {
         truncate: true,
       });
 
-      // Use chunked processing to minimize memory usage
+      // Ultra-minimal memory processing - 1KB chunks
       const reader = stream.getReader();
-      const CHUNK_SIZE = 8192; // 8KB chunks for minimal memory usage
+      const TINY_CHUNK_SIZE = 1024; // 1KB chunks for absolute minimal memory usage
+      let totalBytes = 0;
       
       try {
         while (true) {
@@ -276,20 +277,29 @@ export class FileModel {
             break;
           }
           
-          // Process chunk immediately and release memory
+          // Process ultra-small chunks immediately
           if (value) {
-            // Further split large chunks if needed
-            for (let i = 0; i < value.length; i += CHUNK_SIZE) {
-              const chunk = value.slice(i, i + CHUNK_SIZE);
+            totalBytes += value.length;
+            
+            // Split into tiny chunks and write immediately
+            for (let i = 0; i < value.length; i += TINY_CHUNK_SIZE) {
+              const chunk = value.slice(i, i + TINY_CHUNK_SIZE);
               await file.write(chunk);
               
-              // Allow garbage collection between chunks
-              if (i % (CHUNK_SIZE * 8) === 0) {
+              // Force micro-pauses every 16KB to allow GC
+              if (totalBytes % (16 * 1024) === 0) {
                 await new Promise(resolve => setTimeout(resolve, 0));
+                
+                // Log progress for large files
+                if (totalBytes % (1024 * 1024) === 0) {
+                  console.log(`Processed ${Math.round(totalBytes / 1024 / 1024)}MB`);
+                }
               }
             }
           }
         }
+        
+        console.log(`Upload complete: ${Math.round(totalBytes / 1024 / 1024)}MB total`);
       } finally {
         reader.releaseLock();
         file.close();
