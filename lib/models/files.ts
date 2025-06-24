@@ -236,6 +236,41 @@ export class FileModel {
     return true;
   }
 
+  static async createFromStream(
+    userId: string,
+    path: string,
+    name: string,
+    stream: ReadableStream<Uint8Array>,
+  ): Promise<boolean> {
+    await ensureUserPathIsValidAndSecurelyAccessible(userId, join(path, name));
+
+    const rootPath = join(await AppConfig.getFilesRootPath(), userId, path);
+
+    try {
+      // Ensure the directory exist, if being requested
+      try {
+        await Deno.stat(rootPath);
+      } catch (error) {
+        if ((error as Error).toString().includes('NotFound')) {
+          await Deno.mkdir(rootPath, { recursive: true });
+        }
+      }
+
+      const file = await Deno.open(join(rootPath, name), {
+        create: true,
+        write: true,
+        truncate: true,
+      });
+
+      await stream.pipeTo(file.writable);
+    } catch (error) {
+      console.error(error);
+      return false;
+    }
+
+    return true;
+  }
+
   static async update(
     userId: string,
     path: string,

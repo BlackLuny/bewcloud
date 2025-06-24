@@ -17,7 +17,7 @@ export const handler: Handlers<Data, FreshContextState> = {
       return new Response('Unauthorized', { status: 401 });
     }
 
-    const requestBody = await request.clone().formData();
+    const requestBody = await request.formData();
 
     const pathInView = requestBody.get('path_in_view') as string;
     const parentPath = requestBody.get('parent_path') as string;
@@ -31,9 +31,14 @@ export const handler: Handlers<Data, FreshContextState> = {
       return new Response('Bad Request', { status: 400 });
     }
 
-    const fileContents = typeof contents === 'string' ? contents : await contents.arrayBuffer();
-
-    const createdFile = await FileModel.create(context.state.user.id, parentPath, name.trim(), fileContents);
+    let createdFile: boolean;
+    
+    if (typeof contents === 'string') {
+      createdFile = await FileModel.create(context.state.user.id, parentPath, name.trim(), contents);
+    } else {
+      // Use stream processing for files to avoid loading entire file into memory
+      createdFile = await FileModel.createFromStream(context.state.user.id, parentPath, name.trim(), contents.stream());
+    }
 
     const newFiles = await FileModel.list(context.state.user.id, pathInView);
     const newDirectories = await DirectoryModel.list(context.state.user.id, pathInView);
