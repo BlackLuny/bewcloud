@@ -66,7 +66,7 @@ export const handler: Handlers<Data, FreshContextState> = {
           file.close();
         }
 
-        console.log(`保存块 ${chunkIndex}/${totalChunks} 文件: ${fileName}`);
+        
       }
 
       // 检查是否所有块都已上传
@@ -74,7 +74,7 @@ export const handler: Handlers<Data, FreshContextState> = {
       
       if (allChunksUploaded) {
         // 组装文件
-        console.log(`开始组装文件: ${fileName}`);
+
         const success = await assembleFile(
           context.state.user.id,
           parentPath,
@@ -97,7 +97,7 @@ export const handler: Handlers<Data, FreshContextState> = {
             newDirectories 
           };
 
-          console.log(`文件组装完成: ${fileName}`);
+
           return new Response(JSON.stringify(responseBody));
         }
       }
@@ -107,7 +107,7 @@ export const handler: Handlers<Data, FreshContextState> = {
       return new Response(JSON.stringify(responseBody));
 
     } catch (error) {
-      console.error('分块上传错误:', error);
+      console.error('Chunk upload error:', error);
       return new Response('Upload failed', { status: 500 });
     }
   },
@@ -156,8 +156,8 @@ async function assembleFile(
         const chunkFile = await Deno.open(chunkPath, { read: true });
         
         try {
-          // 复制块内容，使用小缓冲区
-          const buffer = new Uint8Array(64 * 1024); // 64KB缓冲区
+          // 复制块内容，使用较大缓冲区提升性能
+          const buffer = new Uint8Array(256 * 1024); // 256KB缓冲区
           
           while (true) {
             const bytesRead = await chunkFile.read(buffer);
@@ -175,7 +175,7 @@ async function assembleFile(
 
     return true;
   } catch (error) {
-    console.error('文件组装失败:', error);
+    console.error('File assembly failed:', error);
     return false;
   }
 } 
