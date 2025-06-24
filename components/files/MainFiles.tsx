@@ -96,12 +96,12 @@ export default function MainFiles(
         const response = await fetch('/api/files/upload-chunk', {
           method: 'POST',
           headers: {
-            'x-file-name': file.name,
-            'x-parent-path': parentPath,
-            'x-path-in-view': pathInView,
+            'x-file-name': encodeURIComponent(file.name),
+            'x-parent-path': encodeURIComponent(parentPath),
+            'x-path-in-view': encodeURIComponent(pathInView),
             'x-chunk-index': i.toString(),
             'x-total-chunks': totalChunks.toString(),
-            'x-file-id': fileId,
+            'x-file-id': encodeURIComponent(fileId),
           },
           body: chunk,
         });

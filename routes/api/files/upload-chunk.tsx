@@ -21,13 +21,13 @@ export const handler: Handlers<Data, FreshContextState> = {
       return new Response('Unauthorized', { status: 401 });
     }
 
-    // 从headers获取分块信息
-    const fileName = request.headers.get('x-file-name');
-    const parentPath = request.headers.get('x-parent-path') || '/';
-    const pathInView = request.headers.get('x-path-in-view') || '/';
+    // 从headers获取分块信息 (需要URL解码)
+    const fileName = request.headers.get('x-file-name') ? decodeURIComponent(request.headers.get('x-file-name')!) : null;
+    const parentPath = request.headers.get('x-parent-path') ? decodeURIComponent(request.headers.get('x-parent-path')!) : '/';
+    const pathInView = request.headers.get('x-path-in-view') ? decodeURIComponent(request.headers.get('x-path-in-view')!) : '/';
     const chunkIndex = parseInt(request.headers.get('x-chunk-index') || '0');
     const totalChunks = parseInt(request.headers.get('x-total-chunks') || '1');
-    const fileId = request.headers.get('x-file-id') || fileName; // 唯一标识符
+    const fileId = request.headers.get('x-file-id') ? decodeURIComponent(request.headers.get('x-file-id')!) : fileName; // 唯一标识符
 
     if (
       !fileName || !fileId || !parentPath.startsWith('/') ||
