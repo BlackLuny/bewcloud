@@ -21,7 +21,7 @@ export const handler: Handlers<Data, FreshContextState> = {
       return new Response('Unauthorized', { status: 401 });
     }
 
-    const requestBody = await request.clone().json() as RequestBody;
+    const requestBody = await request.json() as RequestBody;
 
     if (requestBody.feedUrl) {
       const newFeed = await FeedModel.create(context.state.user.id, requestBody.feedUrl);

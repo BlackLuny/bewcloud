@@ -71,7 +71,7 @@ export const handler = [
     // NOTE: Uncomment when debugging WebDav stuff
     // if (request.url.includes('/dav')) {
     //   console.info(`Request`, request.headers);
-    //   console.info((await request.clone().text()) || '<No Body>');
+    //   console.info((await request.text()) || '<No Body>');
     //   console.info(`Response`, response.headers);
     //   console.info(`Status`, response.status);
     // }

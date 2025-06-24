@@ -32,7 +32,7 @@ export const handler: Handlers<unknown, FreshContextState> = {
       return new Response(JSON.stringify(responseBody), { status: 403 });
     }
 
-    const body = await request.clone().json() as RequestBody;
+    const body = await request.json() as RequestBody;
     const { email, challenge, authenticationResponse, redirectUrl } = body;
 
     if (!email || !challenge || !authenticationResponse) {

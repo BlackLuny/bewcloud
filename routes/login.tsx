@@ -85,7 +85,7 @@ export const handler: Handlers<Data, FreshContextState> = {
 
     const searchParams = new URL(request.url).searchParams;
 
-    const formData = await request.clone().formData();
+    const formData = await request.formData();
     const email = getFormDataField(formData, 'email');
 
     const redirectUrl = searchParams.get('redirect') || '/';

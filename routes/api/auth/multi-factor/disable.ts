@@ -38,7 +38,7 @@ export const handler: Handlers<unknown, FreshContextState> = {
 
     const { user } = context.state;
 
-    const body = await request.clone().json() as RequestBody;
+    const body = await request.json() as RequestBody;
     const { methodId, password, disableAll } = body;
 
     if (!password) {

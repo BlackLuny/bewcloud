@@ -25,7 +25,7 @@ export const handler: Handlers<Data, FreshContextState> = {
       return new Response('Not found', { status: 404 });
     }
 
-    const requestBody = await request.clone().json() as RequestBody;
+    const requestBody = await request.json() as RequestBody;
 
     if (typeof requestBody.notes !== 'undefined' && userDashboard.data.notes !== requestBody.notes) {
       userDashboard.data.notes = requestBody.notes;

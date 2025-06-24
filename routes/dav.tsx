@@ -91,7 +91,7 @@ export const handler: Handler<Data, FreshContextState> = async (request, context
   if (request.method === 'PUT') {
     const contentLengthString = request.headers.get('content-length');
     const contentLength = contentLengthString ? parseInt(contentLengthString, 10) : null;
-    const body = contentLength === 0 ? new Blob([new Uint8Array([0])]).stream() : request.clone().body;
+    const body = contentLength === 0 ? new Blob([new Uint8Array([0])]).stream() : request.body;
 
     try {
       await ensureUserPathIsValidAndSecurelyAccessible(userId, filePath);
@@ -102,7 +102,27 @@ export const handler: Handler<Data, FreshContextState> = async (request, context
         truncate: true,
       });
 
-      await body?.pipeTo(newFile.writable);
+      if (body) {
+        // Use custom writable stream to control memory usage
+        const writerStream = new WritableStream({
+          write(chunk) {
+            return newFile.write(chunk);
+          },
+          close() {
+            newFile.close();
+          },
+          abort(reason) {
+            newFile.close();
+            throw reason;
+          }
+        }, {
+          highWaterMark: 64 * 1024 // 64KB buffer
+        });
+
+        await body.pipeTo(writerStream);
+      } else {
+        newFile.close();
+      }
 
       return new Response('Created', { status: 201 });
     } catch (error) {
@@ -159,7 +179,7 @@ export const handler: Handler<Data, FreshContextState> = async (request, context
   if (request.method === 'LOCK') {
     const depthString = request.headers.get('depth');
     const depth = depthString ? parseInt(depthString, 10) : null;
-    const xml = await request.clone().text();
+    const xml = await request.text();
     const parsedXml = parse(xml) as Record<string, any>;
 
     const lockToken = crypto.randomUUID();
@@ -217,7 +237,7 @@ export const handler: Handler<Data, FreshContextState> = async (request, context
   if (request.method === 'PROPFIND') {
     const depthString = request.headers.get('depth');
     const depth = depthString ? parseInt(depthString, 10) : null;
-    const xml = await request.clone().text();
+    const xml = await request.text();
 
     const parsedXml = parse(xml);
 

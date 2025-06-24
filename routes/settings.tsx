@@ -62,7 +62,7 @@ export const handler: Handlers<Data, FreshContextState> = {
     let successTitle = '';
     let successMessage = '';
 
-    const formData = await request.clone().formData();
+    const formData = await request.formData();
 
     const { user } = context.state;
 

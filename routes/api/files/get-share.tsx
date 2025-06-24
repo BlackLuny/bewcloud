@@ -27,7 +27,7 @@ export const handler: Handlers<Data, FreshContextState> = {
       return new Response('Forbidden', { status: 403 });
     }
 
-    const requestBody = await request.clone().json() as RequestBody;
+    const requestBody = await request.json() as RequestBody;
 
     if (!requestBody.fileShareId) {
       return new Response('Bad Request', { status: 400 });

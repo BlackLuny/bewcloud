@@ -20,7 +20,7 @@ export const handler: Handlers<Data, FreshContextState> = {
       return new Response('Unauthorized', { status: 401 });
     }
 
-    const requestBody = await request.clone().json() as RequestBody;
+    const requestBody = await request.json() as RequestBody;
 
     if (!requestBody.name || requestBody.name.length < 2) {
       return new Response('Bad request', { status: 400 });

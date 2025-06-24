@@ -65,7 +65,7 @@ export const handler: Handlers<Data, FreshContextState> = {
       ? (await OidcModel.getSignInUrl({ requestPermissions: config.auth.singleSignOnScopes }))
       : undefined;
 
-    const formData = await request.clone().formData();
+    const formData = await request.formData();
     const email = getFormDataField(formData, 'email');
 
     try {
