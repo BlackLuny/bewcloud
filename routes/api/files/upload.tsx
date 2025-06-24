@@ -40,6 +40,11 @@ export const handler: Handlers<Data, FreshContextState> = {
       createdFile = await FileModel.createFromStream(context.state.user.id, parentPath, name.trim(), contents.stream());
     }
 
+    // Force garbage collection after file processing to free up memory
+    if (globalThis.gc) {
+      globalThis.gc();
+    }
+
     const newFiles = await FileModel.list(context.state.user.id, pathInView);
     const newDirectories = await DirectoryModel.list(context.state.user.id, pathInView);
 

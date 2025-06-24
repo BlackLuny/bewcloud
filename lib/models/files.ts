@@ -246,6 +246,8 @@ export class FileModel {
 
     const rootPath = join(await AppConfig.getFilesRootPath(), userId, path);
 
+    let file: Deno.FsFile | null = null;
+    
     try {
       // Ensure the directory exist, if being requested
       try {
@@ -256,15 +258,37 @@ export class FileModel {
         }
       }
 
-      const file = await Deno.open(join(rootPath, name), {
+      file = await Deno.open(join(rootPath, name), {
         create: true,
         write: true,
         truncate: true,
       });
 
-      await stream.pipeTo(file.writable);
+      // Use custom transform stream to control memory usage
+      const writerStream = new WritableStream({
+        write(chunk) {
+          return file!.write(chunk);
+        },
+        close() {
+          file?.close();
+          file = null;
+        },
+        abort(reason) {
+          file?.close();
+          file = null;
+          throw reason;
+        }
+      }, {
+        // Set a reasonable high water mark to control memory buffering
+        highWaterMark: 64 * 1024 // 64KB buffer
+      });
+
+      await stream.pipeTo(writerStream);
     } catch (error) {
       console.error(error);
+      if (file) {
+        file.close();
+      }
       return false;
     }
 
